@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+sudo supervisorctl stop $1 2>&1 >/dev/null
+
+# check if app has virtualenv, if so activate it
+if [ -f "/home/vagrant/.venv/$1/bin/activate" ]
+then
+  echo "Python app found, activating virtualenv..."
+	source /home/vagrant/.venv/$1/bin/activate
+fi
+
+# check if app has run.sh, and execute it if it does
+if [ -f "/vagrant/apps/$1/run.sh" ]
+then
+	echo "Starting $1..."
+	source /vagrant/apps/$1/run.sh
+else
+	echo "$1 does not have a run.sh"
+fi

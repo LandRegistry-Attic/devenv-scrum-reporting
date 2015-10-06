@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+if [[ ! $(id vagrant) ]]; then
+  echo "You must run $0 inside your Vagrant environment"
+  exit 1
+fi
+
+logs="/vagrant/logs/$1"
+apps="/vagrant/apps/$1"
+venv="/home/vagrant/.venv/$1"
+
+read -p "Are you sure you want to remove apps? [Y/N]" -n 1 -r
+echo    # (optional) move to a new line
+if [[ $REPLY =~ ^[Yy]$ ]]
+then
+  [ -d $logs ] && rm -rf $logs
+  [ -d $apps ] && rm -rf $apps
+  [ -d $venv ] && rm -rf $venv
+fi

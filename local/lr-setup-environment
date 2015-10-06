@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+
+PS4='+ $(date "+%s.%N")\011 '
+exec 3>&2 2>/tmp/env-startup.$$.log
+set -x
+
+HOME='/home/vagrant'
+
+if [[ ! $(id vagrant) ]]; then
+  echo "You must run $0 inside your Vagrant environment"
+  exit 1
+fi
+
+# Just for ease of use, let's autoswap to the workspace folder
+sed -i -e 's/.*switch to workspace//' ${HOME}/.bash_profile # really hacky idempotency
+echo 'cd /vagrant; # switch to workspace' >> ${HOME}/.bash_profile
+
+# We <3 pretty output
+sed -i -e 's/.*PS1.*//' ${HOME}/.bash_profile
+echo 'export PS1=" \033[1;34mSCRUM_REPORTS\033[0m \033[1;31m$ \033[0m"' >> ${HOME}/.bash_profile
+
+# Add ./local to PATH
+sed -i -e 's/.*add local dir to path//' ${HOME}/.bash_profile
+echo 'export PATH=$PATH:/vagrant/local' >> ${HOME}/.bash_profile
+
+[ ! -d /vagrant/logs ] && mkdir -p /vagrant/logs
+
+# Initially we need to install a load of junk thats not provided by landregistry/centos
+echo "- - - Installing system dependencies - - -"
+sudo yum install -q -y git GitPython PyYAML python-jinja2 supervisor
+
+#install ruby
+# system update
+yum -y update
+yum -y groupinstall "Development Tools"
+sudo yum -y install ruby-devel
+sudo yum -y install gcc gcc-c++ make flex bison gperf ruby \
+  openssl-devel freetype-devel fontconfig-devel libicu-devel sqlite-devel \
+  libpng-devel libjpeg-devel
+
+#install bundler
+echo "- - - Installing bundler - - -"
+gem install bundler --no-rdoc --no-ri
+
+#install postgresql
+echo "- - - Installing Postgres - - -"
+gem install --no-ri --no-rdoc puppet:3.7.5
+puppet module install puppetlabs-apt --version "<2.0.0"
+puppet module install puppetlabs-postgresql
+puppet apply /vagrant/manifests/postgres.pp
+#puppet does not configure headers.  So later installation of psycopg2 fails because libpq-fe.h is not found.
+#install postgresql-devel again to fix this (or fix the puppet installation).
+sudo yum -y install postgresql-devel
+#set known path to pgconfig so psycopg2 can install
+if [ -d /usr/pgsql-9.3/bin ]; then
+  export PATH=$PATH:/usr/pgsql-9.3/bin
+fi
+
+# TEMP
+sudo yum install -y gcc -q
+sudo systemctl stop firewalld
+
+sudo -i -u vagrant source /vagrant/local/provision-adapters.sh
+
+#Install provisions for all applications we've got
+provision_scripts=`find /vagrant/apps -regex "/vagrant/apps/.*/provision.sh"`
+for script in $provision_scripts
+do
+	bash $script
+done
+
+#add helpful aliases
+echo "source /vagrant/local/add-aliases.sh" >> ${HOME}/.bash_profile
+
+# Put together a supervisor config
+sudo systemctl start supervisord >/dev/null 2>&1
+sudo systemctl enable supervisord >/dev/null 2>&1
+sudo chown -R vagrant:vagrant /etc/supervisord.d/
+
+# Set up applications
+echo "- - - Configuring applications - - -"
+sudo -i -u vagrant python /vagrant/local/lr-setup-apps
+
+# Load supervisor config and start applications
+echo "- - - Starting services - - -"
+sudo supervisorctl reload >/dev/null
+
+set +x
+exec 2>&3 3>&-

@@ -55,3 +55,9 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# Ignore apps as they are in their own repos
+apps/
+
+.DS_Store
+.vagrant

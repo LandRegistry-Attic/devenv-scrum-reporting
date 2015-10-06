@@ -1,0 +1,6 @@
+if [ -f "/vagrant/logs/$1/error.log" ]
+then
+	tail -f /vagrant/logs/$1/error.log
+else
+	echo "No log found for $1"
+fi

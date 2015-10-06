@@ -1,0 +1,26 @@
+# Configuration file for {{ name }}
+
+[program:{{ name }}]
+autostart=true
+autorestart=true
+stopsignal=QUIT
+stdout_logfile=/vagrant/logs/{{ name }}/output.log
+stderr_logfile=/vagrant/logs/{{ name }}/error.log
+stdout_logfile_maxbytes=8192
+stderr_logfile_maxbytes=8192
+user=vagrant
+directory={{ path }}
+command={{venv}}/bin/gunicorn --access-logfile /vagrant/logs/{{ name }}/access.log --reload {% if conf['entrypoint'] -%}
+{{ conf['entrypoint'] }}
+{%- else -%}
+application.app
+{% endif %}
+environment=PATH="{{ venv }}/bin",
+{%- if conf['vars'] -%}
+  {%- for key,value in conf['vars'].items() -%}
+    {{ key }}="{{ value}}",
+  {%- endfor -%}
+{%- endif -%}
+{%- if conf['port'] -%}
+PORT={{ conf['port'] }}
+{% endif %}

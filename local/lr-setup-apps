@@ -1,0 +1,188 @@
+#!/usr/bin/env python
+# Setup applications from git repositories using configuration.yaml
+
+import os
+import sys
+import subprocess
+
+paths = {
+  'apps': '/vagrant/apps',
+  'venv': '/home/vagrant/.venv',
+  'supervisor': '/etc/supervisord.d'
+}
+
+
+# <3 Pretty output
+def say(app,message):
+  print app, '-', str(message)
+
+
+# Setup git repository
+# Returns path to local repository
+def gitSetup(name,repo,branch):
+    import git
+    path = paths['apps'] + '/' + name
+    say(name,'Grabbing latest code from upstream')
+
+    # Pull from upstream git repository
+    if not os.path.exists(path):
+        # Fresh clone
+        git.Repo.clone_from(repo,path)
+        repo = git.Repo(path)
+
+        subprocess.check_output(['git', 'submodule', 'update', '--init'], cwd=path)
+    else:
+        # Fetch latest upstream for an existing repo
+        repo = git.Repo(path)
+        try:
+            repo.remotes['origin'].fetch()
+            subprocess.check_output(['git', 'submodule', 'update', '--init'], cwd=path)
+        except AssertionError:
+            say(name,'Unable to fetch latest code as there are conflicts. Run git fetch automatically')
+
+    # Switch git branches and create if necessary
+    newbranch = None
+    for b in repo.branches:
+        if b.name == branch:
+            newbranch = b
+            say(name,'Using %s branch' % b.name)
+    if not newbranch:
+        newbranch = repo.create_head(branch)
+        say(name,"Creating %s branch" % branch)
+    repo.head.reference = newbranch
+
+    return path
+
+
+# Configure Python applications
+def pythonSetup(name,path):
+    venv = paths['venv'] + '/' + name
+
+    # Create virtualenv
+    if not os.path.exists(venv):
+        os.makedirs(venv)
+        say(name,'Creating virtual environment')
+        subprocess.check_output(['/usr/bin/virtualenv', venv])
+
+    # Install Python libraries
+    if os.path.exists(path + '/requirements.txt'):
+        say(name,'Installing dependencies')
+        subprocess.check_output([venv + '/bin/pip', 'install', '-r', path + '/requirements.txt'])
+    else:
+        say(name,'No requirements file found. Assuming no dependencies')
+
+    return venv
+
+def rubySetup(name, path):
+    # Install Ruby libraries
+    if os.path.exists(path + '/Gemfile'):
+        say(name,'Installing dependencies')
+        subprocess.check_output(['bundle', 'install'], cwd=path)
+    else:
+        say(name,'No Gemfile found. Assuming no dependencies')
+
+
+# This is a bit nasty at the moment, it just returns a template environment which
+# can be used to load templates from /vagrant/local
+def supervisorTemplate():
+    import jinja2
+
+    # Configure templating
+    templateLoader = jinja2.FileSystemLoader(searchpath='/vagrant/local')
+    templateEnv = jinja2.Environment(loader=templateLoader)
+
+    # Check permissions
+    if not os.access(paths['supervisor'],os.W_OK):
+        print >> sys.stderr, "Unable to write to %s - Ensure you have correct permissions" % paths['supervisor']
+        sys.exit(1)
+
+    return templateEnv
+
+
+# Setup applications
+def setup(name,conf,template):
+    # This is a little redundant at this point as gitSetup returns the same value
+    if 'repo' in conf:
+        path = gitSetup(name,conf['repo'],conf['branch'])
+    else:
+        path = paths['apps'] + '/' + name
+
+    ini = '%s/%s.ini' % (paths['supervisor'],name)
+
+    # Create log directory
+    logpath = '/vagrant/logs/' + name
+    if not os.path.exists(logpath):
+        os.makedirs(logpath)
+
+    if conf['apptype'] == 'wsgi':
+        venv = pythonSetup(name,path)
+        # Gunicorn is necessary for all WSGI services so it needs to be installed,
+        # whether it is in the requirements file or not
+        subprocess.check_output([venv + '/bin/pip', 'install', 'gunicorn'])
+
+        #Setup supervisor configuration file
+        supervisor = template.get_template('.wsgi.ini.j2')
+        f = open(ini,'w')
+        f.write(supervisor.render(name=name,path=path,venv=venv,conf=conf))
+        f.close
+    elif conf['apptype'] == 'torquebox':
+        torquebox_logpath = '/vagrant/logs/torquebox'
+        if not os.path.exists(torquebox_logpath):
+            os.makedirs(torquebox_logpath)
+
+        rubySetup(name,path)
+
+        subprocess.check_output(['torquebox', 'deploy'], cwd=path)
+        # Setup supervisor configuration file
+        supervisor = template.get_template('.torquebox.ini.j2')
+
+        torqueboxini = '%s/torquebox.ini' % (paths['supervisor'])
+
+        f = open(torqueboxini,'w')
+        f.write(supervisor.render(name=name,path=path,conf=conf))
+        f.close
+    elif conf['apptype'] == 'genericpython':
+        venv = pythonSetup(name,path)
+
+        supervisor = template.get_template('.genericpython.ini.j2')
+        f = open(ini,'w')
+        f.write(supervisor.render(name=name,path=path,conf=conf))
+        f.close
+
+
+
+# Main runtime
+if __name__ == '__main__':
+
+    app_subset = False
+    if len(sys.argv) > 1:
+        app_subset = True
+
+    import multiprocessing
+    import yaml
+    stream = file('/vagrant/configuration.yaml')
+    config = yaml.load(stream)
+
+    # Set up basic directory structure
+    for name,path in paths.iteritems():
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+    template = supervisorTemplate()
+
+    if app_subset:
+        # Setup and configure subset of applications IN PARALLEL ;-)
+        for app,conf in config['applications'].iteritems():
+            for idx, arg in enumerate(sys.argv):
+                if idx != 0 and app == arg:
+                    proc = multiprocessing.Process(target=setup,args=(app,conf,template))
+                    proc.start()
+
+    else:
+        # Setup and configure applications IN PARALLEL ;-)
+        for app,conf in config['applications'].iteritems():
+            #setup(app, conf, template)
+            proc = multiprocessing.Process(target=setup,args=(app,conf,template))
+            proc.start()
+
+# Fin

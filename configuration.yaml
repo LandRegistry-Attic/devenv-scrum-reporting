@@ -1,0 +1,12 @@
+---
+
+  applications:
+
+    scrum-reporting-prototype:
+      repo: git@github.com:LandRegistry/scrum-reporting-prototype.git
+      branch: master
+      port: 5001
+      entrypoint: application:app
+      apptype: wsgi
+      vars:
+        SETTINGS: config.DevelopmentConfig
