@@ -13,19 +13,10 @@ Vagrant.configure(2) do |node|
   node.vm.box_version      = "0.3.0"
   node.vm.box_check_update = true
   node.ssh.forward_agent = true
-
+  node.vm.network "private_network", :ip => "172.16.42.66"
   # Prevent annoying "stdin: is not a tty" errors from displaying during 'vagrant up'
   node.ssh.shell = "bash -c 'BASH_ENV=/etc/profile exec bash'"
 
-  # If applications have ports assigned, let's map these to the host machine
-  conf['applications'].each do |app,conf|
-    if conf.has_key?('port') && conf['port'] != ''
-      port = conf['port'].to_i
-      node.vm.network :forwarded_port, guest: port, host: port
-    end
-
-    node.vm.network :forwarded_port, guest: 5432, host: 15432
-  end
 
   # Sync folders
   #node.vm.synced_folder "./apps", "/home/vagrant/apps"

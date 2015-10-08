@@ -11,6 +11,15 @@ if [[ ! $(id vagrant) ]]; then
   exit 1
 fi
 
+
+echo "Bootstrapping environment"
+su vagrant -c cat <<EOF > /home/vagrant/.ssh/config
+Host github.com
+StrictHostKeyChecking no
+EOF
+
+
+
 # Just for ease of use, let's autoswap to the workspace folder
 sed -i -e 's/.*switch to workspace//' ${HOME}/.bash_profile # really hacky idempotency
 echo 'cd /vagrant; # switch to workspace' >> ${HOME}/.bash_profile
@@ -47,6 +56,14 @@ echo "- - - Installing Postgres - - -"
 gem install --no-ri --no-rdoc puppet:3.7.5
 puppet module install puppetlabs-apt --version "<2.0.0"
 puppet module install puppetlabs-postgresql
+puppet module install puppetlabs-stdlib
+puppet module install puppetlabs-vcsrepo
+git clone https://github.com/LandRegistry-Ops/puppet-wsgi.git /etc/puppet/modules/wsgi
+
+
+
+
+
 puppet apply /vagrant/manifests/postgres.pp
 #puppet does not configure headers.  So later installation of psycopg2 fails because libpq-fe.h is not found.
 #install postgresql-devel again to fix this (or fix the puppet installation).
@@ -60,7 +77,7 @@ fi
 sudo yum install -y gcc -q
 sudo systemctl stop firewalld
 
-sudo -i -u vagrant source /vagrant/local/provision-adapters.sh
+#sudo -i -u vagrant source /vagrant/local/provision-adapters.sh
 
 #Install provisions for all applications we've got
 provision_scripts=`find /vagrant/apps -regex "/vagrant/apps/.*/provision.sh"`
@@ -77,13 +94,36 @@ sudo systemctl start supervisord >/dev/null 2>&1
 sudo systemctl enable supervisord >/dev/null 2>&1
 sudo chown -R vagrant:vagrant /etc/supervisord.d/
 
-# Set up applications
-echo "- - - Configuring applications - - -"
-sudo -i -u vagrant python /vagrant/local/lr-setup-apps
 
-# Load supervisor config and start applications
-echo "- - - Starting services - - -"
-sudo supervisorctl reload >/dev/null
+
+
+
+
+
+cat <<MANIFEST > backend.pp
+class { 'wsgi': } ->
+wsgi::application { 'scrum-reporting-backend':
+  bind       => '5000',
+  source     => 'https://github.com/LandRegistry/scrum-reporting-backend.git',
+  revision   => 'master',
+  wsgi_entry => 'application.server:app',
+  vars       => {
+    'SETTINGS' => 'config.DevelopmentConfig',
+  }
+}
+wsgi::application { 'scrum-reporting-frontend':
+  bind       => '5001',
+  source     => 'https://github.com/LandRegistry/scrum-reporting-frontend.git',
+  revision   => 'master',
+  wsgi_entry => 'application.server:app',
+  vars       => {
+    'SETTINGS' => 'config.DevelopmentConfig',
+  }
+}
+MANIFEST
+
+
+sudo puppet apply backend.pp
 
 set +x
 exec 2>&3 3>&-
