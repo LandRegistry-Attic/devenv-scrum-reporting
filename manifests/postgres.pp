@@ -40,7 +40,11 @@ class { 'postgresql::server::contrib':
   package_ensure => 'present',
 }
 
-# Create db roles
+postgresql::server::db { 'scrum-progress':
+  user     => 'scrum-progress',
+  password => postgresql_password('scrum-progress', 'scrum-progress'),
+}
+
 postgresql::server::role { 'vagrant':
   password_hash => postgresql_password('vagrant', 'vagrant'),
   superuser => true,
@@ -51,20 +55,14 @@ postgresql::server::role { 'root':
   superuser => true,
 }
 
-# Create scrum report database
-postgresql::server::db { 'scrumreports':
-  user     => 'pg_scrum_user',
-  password => 'scrum',
-}
-
-postgresql::server::database_grant { 'grant vagrant access to scrum reports':
+postgresql::server::database_grant { 'grant vagrant access to system of record':
   privilege => 'ALL',
-  db        => 'currentregister',
+  db        => 'scrum-progress',
   role      => 'vagrant',
 }
 
-postgresql::server::database_grant { 'grant root access to scrum reports':
+postgresql::server::database_grant { 'grant root access to system of record':
   privilege => 'ALL',
-  db        => 'currentregister',
+  db        => 'scrum-progress',
   role      => 'root',
 }
