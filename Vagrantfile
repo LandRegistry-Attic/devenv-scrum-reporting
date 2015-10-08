@@ -17,6 +17,8 @@ Vagrant.configure(2) do |node|
   # Prevent annoying "stdin: is not a tty" errors from displaying during 'vagrant up'
   node.ssh.shell = "bash -c 'BASH_ENV=/etc/profile exec bash'"
 
+  node.vm.synced_folder "apps", "/opt/landregistry/"
+
 
   # Sync folders
   #node.vm.synced_folder "./apps", "/home/vagrant/apps"
