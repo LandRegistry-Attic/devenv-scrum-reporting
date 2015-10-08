@@ -100,7 +100,7 @@ sudo chown -R vagrant:vagrant /etc/supervisord.d/
 
 
 
-cat <<MANIFEST > backend.pp
+cat <<MANIFEST > /home/vagrant/backend.pp
 class { 'wsgi': } ->
 wsgi::application { 'scrum-reporting-backend':
   bind       => '5000',
@@ -122,8 +122,7 @@ wsgi::application { 'scrum-reporting-frontend':
 }
 MANIFEST
 
-
-sudo puppet apply backend.pp
+sudo puppet apply /home/vagrant/backend.pp
 
 set +x
 exec 2>&3 3>&-

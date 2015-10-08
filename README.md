@@ -10,32 +10,19 @@ This development environment is designed to be easy to use, and function very si
 Requirements:
  - Vagrant < 1.4
  - Virtualbox < 4.3.20
-
+ - git
 
 ## TL;DR
 
-Inside the project folder, simply run `vagrant up` and then connect to your projects on the ports defined in `configuration.yaml`
+Inside the project folder, simply run `vagrant up`.
 
-## Useful commands
+Services can be accessed on:
+ - http://172.16.42.66:5000
+ - http://172.16.42.66:5001
 
-All the apps are run by supervisord, here are some helpful aliases for supervisorctl.
-```
-status                - view running status of all apps (via supervisorctl)
-stop {name of app}    - stop app running in supervisord
-start {name of app}   - start app running in supervisord
-restart {name of app} - restart app running in supervisord
-reload                - reload supervisord config and restart all apps
-startsup              - start supervisord (needed after a vagrant halt/vagrant up)
-```
-To run the app in the terminal (i.e. not via supervisord, so you can directly see the output)
-```
-lr-run {name of app}
-```
+## Update Apps
 
-To quickly view the logs of an app
-```
-lr-log {name of app}
-```
+sudo puppet apply ~/backend.pp
 
 ## Apps
 ### [Scrum Report API:](https://github.com/LandRegistry/scrum-reporting-prototype)
