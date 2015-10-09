@@ -13,12 +13,10 @@ fi
 
 
 echo "Bootstrapping environment"
-su vagrant -c cat <<EOF > /home/vagrant/.ssh/config
+cat <<EOF >> /etc/ssh/ssh_config
 Host github.com
 StrictHostKeyChecking no
 EOF
-
-
 
 # Just for ease of use, let's autoswap to the workspace folder
 sed -i -e 's/.*switch to workspace//' ${HOME}/.bash_profile # really hacky idempotency
@@ -59,7 +57,7 @@ puppet module install puppetlabs-postgresql
 puppet module install puppetlabs-stdlib
 puppet module install puppetlabs-vcsrepo
 git clone https://github.com/LandRegistry-Ops/puppet-wsgi.git /etc/puppet/modules/wsgi
-
+sudo sed -i "s/log_level    = 'info'/log_level    = 'debug'/" /etc/puppet/modules/wsgi/manifests/application.pp
 
 
 
@@ -97,14 +95,11 @@ sudo chown -R vagrant:vagrant /etc/supervisord.d/
 
 
 
-
-
-
 cat <<MANIFEST > /home/vagrant/backend.pp
 class { 'wsgi': } ->
 wsgi::application { 'scrum-reporting-backend':
   bind       => '5000',
-  source     => 'https://github.com/LandRegistry/scrum-reporting-backend.git',
+  source     => 'git@github.com:LandRegistry/scrum-reporting-backend.git',
   revision   => 'master',
   wsgi_entry => 'application.server:app',
   manage     => true,
@@ -114,7 +109,7 @@ wsgi::application { 'scrum-reporting-backend':
 }
 wsgi::application { 'scrum-reporting-frontend':
   bind       => '5001',
-  source     => 'https://github.com/LandRegistry/scrum-reporting-frontend.git',
+  source     => 'git@github.com:LandRegistry/scrum-reporting-frontend.git',
   revision   => 'master',
   wsgi_entry => 'application.server:app',
   vars       => {
@@ -123,7 +118,7 @@ wsgi::application { 'scrum-reporting-frontend':
 }
 MANIFEST
 
-sudo puppet apply /home/vagrant/backend.pp
+puppet apply /home/vagrant/backend.pp
 
 set +x
 exec 2>&3 3>&-
