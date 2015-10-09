@@ -107,6 +107,7 @@ wsgi::application { 'scrum-reporting-backend':
   source     => 'https://github.com/LandRegistry/scrum-reporting-backend.git',
   revision   => 'master',
   wsgi_entry => 'application.server:app',
+  manage     => true,
   vars       => {
     'SETTINGS' => 'config.DevelopmentConfig',
   }
