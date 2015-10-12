@@ -105,6 +105,7 @@ wsgi::application { 'scrum-reporting-backend':
   manage     => true,
   vars       => {
     'SETTINGS' => 'config.DevelopmentConfig',
+    'SQLALCHEMY_DATABASE_URI' => 'postgresql+pg8000://scrum-progress:scrum-progress@localhost/scrum-progress'
   }
 }
 wsgi::application { 'scrum-reporting-frontend':
@@ -115,6 +116,10 @@ wsgi::application { 'scrum-reporting-frontend':
   manage     => true,
   vars       => {
     'SETTINGS' => 'config.DevelopmentConfig',
+    'SQLALCHEMY_DATABASE_URI' => 'postgresql+pg8000://scrum-users:scrum-users@localhost/scrum-users',
+    'SECRET_KEY' => '123456790',
+    'SALT' => 'passwordsalt',
+    'SCRUM_API' => 'http://localhost:5000'
   }
 }
 MANIFEST
