@@ -45,6 +45,12 @@ postgresql::server::db { 'scrum-progress':
   password => postgresql_password('scrum-progress', 'scrum-progress'),
 }
 
+postgresql::server::db { 'scrum-users':
+  user     => 'scrum-users',
+  password => postgresql_password('scrum-users', 'scrum-users'),
+}
+
+
 postgresql::server::role { 'vagrant':
   password_hash => postgresql_password('vagrant', 'vagrant'),
   superuser => true,
@@ -61,8 +67,21 @@ postgresql::server::database_grant { 'grant vagrant access to system of record':
   role      => 'vagrant',
 }
 
+postgresql::server::database_grant { 'grant vagrant access to system of record users':
+  privilege => 'ALL',
+  db        => 'scrum-users',
+  role      => 'vagrant',
+}
+
+
 postgresql::server::database_grant { 'grant root access to system of record':
   privilege => 'ALL',
   db        => 'scrum-progress',
+  role      => 'root',
+}
+
+postgresql::server::database_grant { 'grant root access to system of record users':
+  privilege => 'ALL',
+  db        => 'scrum-users',
   role      => 'root',
 }
