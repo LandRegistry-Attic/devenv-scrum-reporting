@@ -111,7 +111,7 @@ wsgi::application { 'scrum-reporting-backend':
 wsgi::application { 'scrum-reporting-frontend':
   bind       => '5001',
   source     => 'git@github.com:LandRegistry/scrum-reporting-frontend.git',
-  revision   => 'feature-login_sprint_report',
+  revision   => 'master',
   wsgi_entry => 'application.server:app',
   manage     => true,
   vars       => {

@@ -26,8 +26,8 @@ sudo puppet apply ~/backend.pp
 
 ## Restart apps
 
-sudo systemctl restart lr-scrum-reporting-backend.service
-sudo systemctl restart lr-scrum-reporting-frontend.service
+- sudo systemctl restart lr-scrum-reporting-backend.service
+- sudo systemctl restart lr-scrum-reporting-frontend.service
 
 ## Apps
 ### [Scrum Report API:](https://github.com/LandRegistry/scrum-reporting-prototype)
